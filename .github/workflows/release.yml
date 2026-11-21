@@ -1,0 +1,45 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            executable: disecta
+            asset: disecta-linux-x86_64
+          - os: windows-latest
+            executable: disecta.exe
+            asset: disecta-windows-x86_64.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo test --workspace --locked
+      - run: cargo build --workspace --release --locked
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: target/release/${{ matrix.executable }}
+          if-no-files-found: error
+
+  release:
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          mkdir -p release/linux release/windows
+          install -m 755 disecta-linux-x86_64/disecta release/linux/disecta
+          cp disecta-windows-x86_64.exe/disecta.exe release/windows/disecta.exe
+          tar -C release/linux -czf disecta-linux-x86_64.tar.gz disecta
+          (cd release/windows && zip ../../disecta-windows-x86_64.zip disecta.exe)
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes disecta-linux-x86_64.tar.gz disecta-windows-x86_64.zip

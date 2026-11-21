@@ -1,0 +1,13 @@
+[package]
+name = "disecta"
+description = "Static binary inspection and x86-64 disassembly"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+disecta-core = { path = "../disecta-core" }
+serde.workspace = true
+serde_json.workspace = true
+tiny_http = "0.12"

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DISECTA</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="toolbar">
+    <a class="brand" href="/" aria-label="DISECTA home"><span class="mark" aria-hidden="true"></span>DISECTA</a>
+    <button id="open" class="primary" type="button">Open binary</button>
+    <button id="example" type="button">Open example</button>
+    <input id="upload" type="file" hidden>
+    <button id="save" class="export" type="button" hidden>Export JSON</button>
+  </header>
+
+  <p id="message" role="status" hidden></p>
+  <main id="empty" class="empty">
+    <div>
+      <span class="empty-mark" aria-hidden="true"></span>
+      <h1>Open a binary</h1>
+      <p>Choose an x86-64 PE32+ or ELF64 file, or open the included example.</p>
+    </div>
+  </main>
+
+  <main id="workbench" hidden>
+    <div class="filebar">
+      <h1 id="filename"></h1>
+      <span id="filetype"></span>
+      <button id="entry" type="button" hidden>Go to entry point</button>
+    </div>
+
+    <div class="panes">
+      <aside class="navigator" aria-label="Image navigation">
+        <div class="pane-heading"><h2>Sections</h2></div>
+        <nav id="sections" aria-label="Sections"></nav>
+      </aside>
+
+      <section class="listing" aria-label="Binary listing">
+        <div class="viewbar">
+          <div class="views" aria-label="Views">
+            <button type="button" data-view="disassembly" aria-pressed="true">Disassembly</button>
+            <button type="button" data-view="symbols" aria-pressed="false">Symbols</button>
+            <button type="button" data-view="imports" aria-pressed="false">Imports</button>
+            <button type="button" data-view="exports" aria-pressed="false">Exports</button>
+          </div>
+          <form id="jump" aria-label="Go to address">
+            <input aria-label="Virtual address" id="address" placeholder="Go to address" autocomplete="off" spellcheck="false">
+            <button type="submit" aria-label="Jump">Go</button>
+          </form>
+        </div>
+
+        <div class="table-scroll" id="table-scroll">
+          <table id="table" aria-label="Disassembly">
+            <thead id="columns"></thead>
+            <tbody id="rows"></tbody>
+          </table>
+          <p id="empty-view" hidden></p>
+        </div>
+        <div id="pager" class="pager" hidden>
+          <span id="page-range"></span>
+          <button type="button" id="previous">Previous</button>
+          <button type="button" id="next">Next</button>
+        </div>
+      </section>
+
+      <aside class="inspector" aria-label="Details">
+        <div class="pane-heading"><h2 id="details-heading">Details</h2></div>
+        <div id="details"></div>
+      </aside>
+    </div>
+  </main>
+</body>
+</html>

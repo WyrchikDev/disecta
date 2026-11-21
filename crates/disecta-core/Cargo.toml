@@ -1,0 +1,11 @@
+[package]
+name = "disecta-core"
+description = "Static PE32+ and ELF64 inspection and x86-64 instruction decoding"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+object = { version = "0.41", default-features = false, features = ["read_core", "elf", "pe", "std", "unaligned"] }
+iced-x86 = { version = "1.21", default-features = false, features = ["std", "decoder", "intel", "instr_info"] }
+serde.workspace = true
