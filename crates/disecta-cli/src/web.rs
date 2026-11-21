@@ -1,7 +1,7 @@
 use std::io::Read;
 use std::io::{self, Cursor};
 
-use disecta_core::{Binary, EXAMPLE_PE, Limits};
+use disecta_core::{AnalysisLimits, Binary, EXAMPLE_PE, Limits};
 use tiny_http::{Header, Method, Request, Response, Server};
 
 use crate::{CliError, find_section, parse_address};
@@ -9,14 +9,19 @@ use crate::{CliError, find_section, parse_address};
 type Reply = Response<Cursor<Vec<u8>>>;
 const PAGE_SIZE: usize = 256;
 
-pub fn serve(port: u16, limits: Limits, verbose: bool) -> Result<(), CliError> {
+pub fn serve(
+    port: u16,
+    limits: Limits,
+    analysis_limits: AnalysisLimits,
+    verbose: bool,
+) -> Result<(), CliError> {
     let server =
         Server::http(("127.0.0.1", port)).map_err(|error| io::Error::other(error.to_string()))?;
     let host = server.server_addr().to_string();
     let origin = format!("http://{host}");
     println!("Open {origin}");
     for mut request in server.incoming_requests() {
-        let reply = route(&mut request, &host, &origin, limits);
+        let reply = route(&mut request, &host, &origin, limits, analysis_limits);
         if let Err(error) = request.respond(reply)
             && verbose
         {
@@ -26,7 +31,13 @@ pub fn serve(port: u16, limits: Limits, verbose: bool) -> Result<(), CliError> {
     Ok(())
 }
 
-fn route(request: &mut Request, host: &str, origin: &str, limits: Limits) -> Reply {
+fn route(
+    request: &mut Request,
+    host: &str,
+    origin: &str,
+    limits: Limits,
+    analysis_limits: AnalysisLimits,
+) -> Reply {
     if request_header(request, "Host") != Some(host) {
         return problem(403, "invalid host");
     }
@@ -48,8 +59,18 @@ fn route(request: &mut Request, host: &str, origin: &str, limits: Limits) -> Rep
             "text/javascript; charset=utf-8",
             include_bytes!("web/app.js"),
         ),
+        (&Method::Get, "/graph.js") => response(
+            200,
+            "text/javascript; charset=utf-8",
+            include_bytes!("web/graph.js"),
+        ),
+        (&Method::Get, "/analysis-view.js") => response(
+            200,
+            "text/javascript; charset=utf-8",
+            include_bytes!("web/analysis-view.js"),
+        ),
         (&Method::Get, "/example") => response(200, "application/octet-stream", EXAMPLE_PE),
-        (&Method::Post, "/open" | "/disasm") => {
+        (&Method::Post, "/open" | "/disasm" | "/analysis" | "/cfg") => {
             if request_header(request, "Origin") != Some(origin)
                 || request_header(request, "Content-Type") != Some("application/octet-stream")
                 || request_header(request, "X-Disecta") != Some("1")
@@ -72,7 +93,7 @@ fn route(request: &mut Request, host: &str, origin: &str, limits: Limits) -> Rep
             {
                 return problem(400, "could not read the full file");
             }
-            match analyze(path, query, &bytes, limits) {
+            match analyze(path, query, &bytes, limits, analysis_limits) {
                 Ok(bytes) => response(200, "application/json", &bytes),
                 Err(error) => {
                     let status = match error.kind {
@@ -88,8 +109,17 @@ fn route(request: &mut Request, host: &str, origin: &str, limits: Limits) -> Rep
     }
 }
 
-fn analyze(path: &str, query: &str, bytes: &[u8], limits: Limits) -> Result<Vec<u8>, CliError> {
+fn analyze(
+    path: &str,
+    query: &str,
+    bytes: &[u8],
+    limits: Limits,
+    analysis_limits: AnalysisLimits,
+) -> Result<Vec<u8>, CliError> {
     let image = Binary::parse(bytes, limits)?;
+    if path == "/analysis" {
+        return Ok(serde_json::to_vec(&image.analyze(analysis_limits)?)?);
+    }
     if path == "/open" {
         let metadata = image.metadata();
         let start = metadata
@@ -122,6 +152,10 @@ fn analyze(path: &str, query: &str, bytes: &[u8], limits: Limits) -> Result<Vec<
         message: "invalid disassembly parameters".into(),
         code: 3,
     };
+    if path == "/cfg" {
+        let start = parse_address(value("function").ok_or_else(invalid)?).map_err(|_| invalid())?;
+        return Ok(serde_json::to_vec(&image.cfg(start, analysis_limits)?)?);
+    }
     let section = value("section")
         .and_then(|section| section.parse::<usize>().ok())
         .ok_or_else(invalid)?;

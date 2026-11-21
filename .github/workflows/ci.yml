@@ -19,3 +19,10 @@ jobs:
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
       - run: cargo build --workspace --release --locked
+      - name: Analyze compiler-produced ELF fixtures
+        if: runner.os == 'Linux'
+        run: |
+          for opt in 0 2; do
+            cc -shared -fPIC -nostdlib -O"$opt" tests/fixtures/linked.c -o "$RUNNER_TEMP/linked-O$opt.so"
+          done
+          python3 tests/fixtures/check_linked.py target/release/disecta "$RUNNER_TEMP"/linked-*.so

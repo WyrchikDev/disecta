@@ -1,7 +1,9 @@
 "use strict";
 
 const byId = (id) => document.getElementById(id);
-const viewNames = {disassembly: "Disassembly", symbols: "Symbols", imports: "Imports", exports: "Exports"};
+const viewNames = {disassembly: "Disassembly", functions: "Functions", flow: "Control flow",
+  calls: "Calls", references: "References", symbols: "Symbols", imports: "Imports", exports: "Exports"};
+const analysisViews = new Set(["functions", "flow", "calls", "references"]);
 const recordPageSize = 256;
 const state = {
   file: null, metadata: null, section: null, page: null, view: "disassembly",
@@ -58,6 +60,7 @@ function open(loader) {
       file, metadata, page, section: page?.section ?? null, view: "disassembly",
       selected: 0, history: [], recordsOffset: 0,
     });
+    resetAnalysisView();
     byId("filename").textContent = file.name;
     byId("filetype").textContent = metadata.format + " / " + metadata.architecture;
     byId("entry").hidden = !metadata.entry;
@@ -164,6 +167,16 @@ function render() {
   }
   byId("table").setAttribute("aria-label", viewNames[state.view]);
   byId("table-scroll").scrollTop = 0;
+  byId("table-scroll").hidden = state.view === "flow";
+  byId("flow-view").hidden = state.view !== "flow";
+  byId("function-tools").hidden = state.view !== "functions";
+  byId("reference-tools").hidden = state.view !== "references";
+  byId("call-tools").hidden = state.view !== "calls";
+  byId("call-graph").hidden = true;
+  if (analysisViews.has(state.view)) {
+    renderAnalysisView();
+    return;
+  }
   if (state.view === "disassembly") renderDisassembly();
   else renderRecords();
   renderDetails();
@@ -269,6 +282,12 @@ function renderDetails() {
     target.addEventListener("click", () => jump(instruction.target));
     detail.append(target);
   }
+  if (instruction) {
+    detail.append(
+      detailAction("References", () => openAnalysisView("references", instruction.address)),
+      detailAction("CFG from address", () => openFlow(instruction.address)),
+    );
+  }
 }
 
 function describeOperand(operand) {
@@ -298,7 +317,7 @@ function renderPager() {
     byId("next").disabled = !state.page.next_address;
     byId("page-range").textContent = rows[0].address + " – " + rows.at(-1).address;
   } else {
-    const length = state.metadata[state.view].length;
+    const length = analysisViews.has(state.view) ? analysisState.rowCount : state.metadata[state.view].length;
     pager.hidden = length <= recordPageSize;
     byId("previous").disabled = !state.recordsOffset;
     byId("next").disabled = state.recordsOffset + recordPageSize >= length;
@@ -362,20 +381,28 @@ byId("rows").addEventListener("keydown", (event) => {
 });
 for (const button of document.querySelectorAll("[data-view]")) {
   button.addEventListener("click", () => {
-    state.view = button.dataset.view;
-    state.recordsOffset = 0;
-    render();
+    const view = button.dataset.view;
+    if (analysisViews.has(view)) {
+      openAnalysisView(view);
+    } else {
+      state.view = view;
+      state.recordsOffset = 0;
+      render();
+    }
   });
 }
 byId("save").addEventListener("click", () => {
-  const data = JSON.stringify({file: state.file.name, metadata: state.metadata, page: state.page}, null, 2);
+  downloadJson(state.file.name + ".json", {file: state.file.name, metadata: state.metadata, page: state.page});
+});
+function downloadJson(filename, report) {
+  const data = JSON.stringify(report, null, 2);
   const url = URL.createObjectURL(new Blob([data], {type: "application/json"}));
   const link = element("a");
   link.href = url;
-  link.download = state.file.name + ".json";
+  link.download = filename;
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-});
+}
 document.addEventListener("keydown", (event) => {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "o") {
     event.preventDefault();

@@ -5,7 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DISECTA</title>
   <link rel="stylesheet" href="/style.css">
+  <script src="/graph.js" defer></script>
   <script src="/app.js" defer></script>
+  <script src="/analysis-view.js" defer></script>
 </head>
 <body>
   <header class="toolbar">
@@ -42,6 +44,10 @@
         <div class="viewbar">
           <div class="views" aria-label="Views">
             <button type="button" data-view="disassembly" aria-pressed="true">Disassembly</button>
+            <button type="button" data-view="functions" aria-pressed="false">Functions</button>
+            <button type="button" data-view="flow" aria-pressed="false">Control flow</button>
+            <button type="button" data-view="calls" aria-pressed="false">Calls</button>
+            <button type="button" data-view="references" aria-pressed="false">References</button>
             <button type="button" data-view="symbols" aria-pressed="false">Symbols</button>
             <button type="button" data-view="imports" aria-pressed="false">Imports</button>
             <button type="button" data-view="exports" aria-pressed="false">Exports</button>
@@ -52,6 +58,51 @@
           </form>
         </div>
 
+        <div id="function-tools" class="analysis-tools" hidden>
+          <input id="function-search" type="search" aria-label="Search functions" placeholder="Search name or address">
+          <select id="function-confidence" aria-label="Function confidence">
+            <option value="">All confidence levels</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="strong">Strong candidate</option>
+            <option value="heuristic">Heuristic</option>
+            <option value="unknown">Unknown</option>
+          </select>
+          <select id="function-sort" aria-label="Sort functions">
+            <option value="address">Address</option>
+            <option value="name">Name</option>
+            <option value="confidence">Confidence</option>
+          </select>
+          <span id="function-limit" hidden>Partial analysis</span>
+        </div>
+        <form id="reference-tools" class="analysis-tools" hidden>
+          <input id="reference-address" aria-label="Reference address" placeholder="Virtual address" spellcheck="false">
+          <button type="submit">Find references</button>
+          <span id="reference-limit" hidden>Partial analysis</span>
+        </form>
+        <div id="call-tools" class="analysis-tools" hidden>
+          <form id="call-filter">
+            <input id="call-address" aria-label="Call filter address" placeholder="Function address" spellcheck="false">
+            <button type="submit">Filter calls</button>
+          </form>
+          <button id="call-all" type="button">All calls</button>
+          <button id="call-graph-mode" type="button" aria-pressed="false">Call graph</button>
+          <span id="call-limit" hidden>Partial analysis</span>
+        </div>
+        <div id="call-graph" class="call-graph" aria-label="Call relationships" hidden></div>
+        <div id="flow-view" hidden>
+          <div class="analysis-tools">
+            <form id="flow-function">
+              <input id="flow-address" aria-label="Function entry" placeholder="Function entry" spellcheck="false">
+              <button type="submit">Open CFG</button>
+            </form>
+            <button type="button" id="flow-fit">Fit</button>
+            <button type="button" id="flow-zoom-out" aria-label="Zoom out">−</button>
+            <button type="button" id="flow-zoom-in" aria-label="Zoom in">+</button>
+            <button type="button" id="flow-save">Export CFG</button>
+          </div>
+          <svg id="flow-canvas" aria-label="Control-flow graph" xmlns="http://www.w3.org/2000/svg"></svg>
+          <p id="flow-status" role="status" hidden></p>
+        </div>
         <div class="table-scroll" id="table-scroll">
           <table id="table" aria-label="Disassembly">
             <thead id="columns"></thead>

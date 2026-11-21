@@ -128,46 +128,64 @@ impl Binary<'_> {
             budget.check()?;
             let offset = decoder.position();
             let instruction = decoder.decode();
-            let invalid = instruction.is_invalid();
-            let mut rendered = String::new();
-            formatter.format(&instruction, &mut rendered);
-            let operands: Vec<_> = (0..instruction.op_count())
-                .map(|index| operand(&instruction, index))
-                .collect();
-            let target = match instruction.flow_control() {
-                FlowControl::Call
-                | FlowControl::ConditionalBranch
-                | FlowControl::UnconditionalBranch => {
-                    operands.iter().find_map(|operand| match operand {
-                        Operand::NearBranch { target } => Some(*target),
-                        _ => None,
-                    })
-                }
-                _ => None,
-            };
-            instructions.push(Instruction {
-                address: Address(instruction.ip()),
-                file_offset: file_start + (skip + offset) as u64,
-                bytes: input[offset..decoder.position()]
-                    .iter()
-                    .map(|byte| format!("{byte:02X}"))
-                    .collect::<Vec<_>>()
-                    .join(" "),
-                length: instruction.len(),
-                text: rendered,
-                mnemonic: format!("{:?}", instruction.mnemonic()).to_ascii_lowercase(),
-                opcode: format!("{:?}", instruction.code()),
-                flow: format!("{:?}", instruction.flow_control()),
-                target,
-                operands,
-                invalid,
-            });
+            instructions.push(describe(
+                &instruction,
+                &input[offset..decoder.position()],
+                file_start + (skip + offset) as u64,
+                &mut formatter,
+            ));
         }
         Ok(Disassembly {
             section,
             instructions,
             next_address: decoder.can_decode().then(|| Address(decoder.ip())),
         })
+    }
+}
+
+pub(crate) fn near_target(instruction: &iced_x86::Instruction) -> Option<Address> {
+    (0..instruction.op_count())
+        .any(|index| {
+            matches!(
+                instruction.op_kind(index),
+                OpKind::NearBranch16 | OpKind::NearBranch32 | OpKind::NearBranch64
+            )
+        })
+        .then(|| Address(instruction.near_branch_target()))
+}
+
+pub(crate) fn describe(
+    instruction: &iced_x86::Instruction,
+    bytes: &[u8],
+    file_offset: u64,
+    formatter: &mut IntelFormatter,
+) -> Instruction {
+    let mut text = String::new();
+    formatter.format(instruction, &mut text);
+    let target = match instruction.flow_control() {
+        FlowControl::Call | FlowControl::ConditionalBranch | FlowControl::UnconditionalBranch => {
+            near_target(instruction)
+        }
+        _ => None,
+    };
+    Instruction {
+        address: Address(instruction.ip()),
+        file_offset,
+        bytes: bytes
+            .iter()
+            .map(|byte| format!("{byte:02X}"))
+            .collect::<Vec<_>>()
+            .join(" "),
+        length: instruction.len(),
+        text,
+        mnemonic: format!("{:?}", instruction.mnemonic()).to_ascii_lowercase(),
+        opcode: format!("{:?}", instruction.code()),
+        flow: format!("{:?}", instruction.flow_control()),
+        target,
+        operands: (0..instruction.op_count())
+            .map(|index| operand(instruction, index))
+            .collect(),
+        invalid: instruction.is_invalid(),
     }
 }
 

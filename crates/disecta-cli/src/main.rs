@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+mod analysis_cli;
 mod web;
 
 use std::fs::File;
@@ -35,6 +36,9 @@ struct Cli {
     #[arg(long, short, global = true)]
     verbose: bool,
 
+    #[command(flatten)]
+    analysis: analysis_cli::Options,
+
     #[command(subcommand)]
     command: Command,
 }
@@ -56,6 +60,33 @@ enum Command {
         #[arg(long, default_value_t = 256)]
         count: usize,
     },
+    /// Discover function candidates and report their evidence.
+    Functions { path: PathBuf },
+    /// Recover a function's reachable control-flow graph.
+    Cfg {
+        path: PathBuf,
+        /// Root virtual address.
+        #[arg(long, value_parser = parse_address)]
+        function: Address,
+        /// Use Graphviz DOT or a human-readable listing.
+        #[arg(long, value_enum, conflicts_with = "json")]
+        format: Option<analysis_cli::GraphFormat>,
+    },
+    /// List references to and from an exact virtual address.
+    Xrefs {
+        path: PathBuf,
+        #[arg(long, value_parser = parse_address)]
+        address: Address,
+    },
+    /// List direct and unresolved indirect call sites.
+    Calls {
+        path: PathBuf,
+        /// Restrict to incoming or outgoing calls at a function entry.
+        #[arg(long, value_parser = parse_address)]
+        function: Option<Address>,
+    },
+    /// Report discovered functions, static references, and mapped import slots.
+    Analyze { path: PathBuf },
     /// Serve the local graphical workbench on 127.0.0.1.
     Gui {
         /// Loopback port. Use 0 for an automatically assigned port.
@@ -131,8 +162,16 @@ fn run(args: &Cli) -> Result<(), CliError> {
         ..Limits::default()
     };
     let path = match &args.command {
-        Command::Inspect { path } | Command::Disasm { path, .. } => path,
-        Command::Gui { port } => return web::serve(*port, limits, args.verbose),
+        Command::Inspect { path }
+        | Command::Disasm { path, .. }
+        | Command::Functions { path }
+        | Command::Cfg { path, .. }
+        | Command::Xrefs { path, .. }
+        | Command::Calls { path, .. }
+        | Command::Analyze { path } => path,
+        Command::Gui { port } => {
+            return web::serve(*port, limits, (&args.analysis).into(), args.verbose);
+        }
     };
     let file = File::open(path)
         .map_err(|error| io::Error::new(error.kind(), format!("{}: {error}", path.display())))?;
@@ -182,7 +221,23 @@ fn run(args: &Cli) -> Result<(), CliError> {
                 }
             }
         }
-        Command::Gui { .. } => unreachable!("handled before opening a file"),
+        command => {
+            use analysis_cli::Report;
+            let report = match command {
+                Command::Functions { .. } => Report::Functions,
+                Command::Cfg {
+                    function, format, ..
+                } => Report::Cfg {
+                    address: *function,
+                    format: format.unwrap_or_default(),
+                },
+                Command::Xrefs { address, .. } => Report::References(*address),
+                Command::Calls { function, .. } => Report::Calls(*function),
+                Command::Analyze { .. } => Report::Analyze,
+                _ => unreachable!("handled before writing analysis"),
+            };
+            analysis_cli::write(&mut out, &image, report, (&args.analysis).into(), args.json)?;
+        }
     }
     out.flush()?;
     Ok(())

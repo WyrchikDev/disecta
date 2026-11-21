@@ -38,7 +38,7 @@ impl Error {
         }
     }
 
-    fn malformed(error: impl fmt::Display) -> Self {
+    pub(crate) fn malformed(error: impl fmt::Display) -> Self {
         Self::new(ErrorKind::Malformed, error.to_string())
     }
 }
@@ -223,7 +223,7 @@ impl Budget {
         Ok(())
     }
 
-    fn record(&mut self) -> Result<(), Error> {
+    pub(crate) fn record(&mut self) -> Result<(), Error> {
         self.check()?;
         self.entries_left = self
             .entries_left
@@ -232,7 +232,7 @@ impl Budget {
         Ok(())
     }
 
-    fn name(&mut self, name: &[u8]) -> Result<String, Error> {
+    pub(crate) fn name(&mut self, name: &[u8]) -> Result<String, Error> {
         // Invalid UTF-8 can grow by up to 3x after replacement.
         let bound = name.len().saturating_mul(3);
         self.names_left = self
@@ -253,7 +253,7 @@ impl Budget {
 /// A validated static view of an executable. The input stays borrowed and is never executed.
 #[derive(Debug)]
 pub struct Binary<'data> {
-    bytes: &'data [u8],
+    pub(crate) bytes: &'data [u8],
     metadata: Metadata,
     mappings: Vec<Mapping>,
     pub(crate) limits: Limits,

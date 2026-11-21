@@ -6,4 +6,12 @@ Compile identical small, independently authored C programs with GCC and Clang at
 
 Once function discovery ships, compare recovered entries against compiler/linker metadata and report precision and recall. For matching, label counterparts by source identity and build metadata, including many-to-one cases. Record top-1 accuracy and ambiguous outcomes. Once lifting and verification ship, report coverage, unsupported cases, solver timeouts and false equivalence against controlled ground truth.
 
-This document defines the measurement procedure. No benchmark numbers have been published.
+## Phase A fixture baseline
+
+Build the release executable and run:
+
+```sh
+python benchmarks/phase_a.py target/release/disecta --runs 30 --build "stable x86_64 release, Cargo.lock"
+```
+
+The harness records hashes, environment details and CLI wall-clock distributions. It includes process launch, file I/O, decoding and JSON formatting, so the small fixture results are suitable for smoke comparisons. It verifies both known function entries and the six expected root CFG edges against manually specified ground truth from the fixture instruction bytes. It exits nonzero if either set differs. This baseline does not measure peak RSS, engine-only throughput or accuracy on a production binary corpus.

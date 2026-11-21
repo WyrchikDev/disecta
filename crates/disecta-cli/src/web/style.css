@@ -151,7 +151,7 @@
     gap: 2px 9px;
     border-bottom: 1px solid var(--border);
   }
-  .views { display: flex; gap: 2px; }
+  .views { display: flex; flex-wrap: wrap; gap: 2px; }
   .views button {
     min-height: 45px;
     padding: 0 9px;
@@ -221,6 +221,112 @@
   #message.error { color: #812f24; background: #f8eae5; border-bottom: 1px solid #e4ccc2; }
 }
 
+@layer components {
+  .analysis-tools, .analysis-tools form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+  .analysis-tools {
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--paper);
+  }
+  .analysis-tools input, .analysis-tools select, .analysis-tools button {
+    min-height: 31px;
+    max-width: 100%;
+    padding: 4px 7px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--white);
+    color: var(--ink);
+    font: inherit;
+  }
+  .analysis-tools button:hover:not(:disabled) { background: var(--panel); }
+  .analysis-tools button[aria-pressed=true] { background: var(--selection); }
+  .analysis-tools span { color: var(--literal); }
+  #flow-view { min-width: 0; }
+  #flow-canvas {
+    display: block;
+    width: 100%;
+    height: clamp(350px, calc(100dvh - 224px), 780px);
+    background: var(--paper);
+    touch-action: none;
+    cursor: grab;
+  }
+  #flow-canvas:active { cursor: grabbing; }
+  #flow-status { padding: 12px 16px; color: var(--muted); }
+  .flow-node > rect { fill: var(--white); stroke: #aab8b0; }
+  .flow-node.selected > rect { stroke: var(--accent); stroke-width: 2px; }
+  .flow-header rect { fill: #edf0ea; }
+  .flow-header:hover rect, .flow-node.selected .flow-header rect { fill: var(--selection); }
+  .flow-node text { fill: var(--ink); font: 13px var(--mono); }
+  .flow-header text { fill: var(--accent); font-weight: 700; }
+  .flow-instruction rect { fill: transparent; }
+  .flow-instruction:hover rect, .flow-instruction.selected rect { fill: var(--selection); }
+  .flow-more { fill: var(--muted); }
+  .flow-edges > path { fill: none; stroke: #637584; stroke-width: 1.5px; }
+  .flow-edges > path.branch_taken { stroke: var(--accent); }
+  .flow-edges > path.external { stroke: var(--literal); stroke-dasharray: 3 3; }
+  .flow-edges > path.highlight { stroke-width: 3px; }
+  #flow-canvas marker path { fill: #637584; }
+  #flow-canvas marker.branch_taken path { fill: var(--accent); }
+  #flow-canvas marker.external path { fill: var(--literal); }
+  .flow-exit text { fill: var(--literal); font: 11px var(--mono); }
+  .flow-header, .flow-instruction, .flow-exit[role=button] { cursor: pointer; }
+  .flow-exit[role=button]:hover text { text-decoration: underline; }
+  #details { max-height: max(420px, calc(100dvh - 175px)); overflow: auto; }
+  #details .detail-actions { display: flex; flex-wrap: wrap; gap: 5px; }
+  #details button + button { margin-left: 4px; }
+  #details .detail-actions button + button { margin-left: 0; }
+  #details .flow-details { padding-left: 17px; margin: 4px 0 0; }
+  #details .flow-details li { margin-bottom: 5px; }
+  #details .flow-details button {
+    margin: 0;
+    padding: 0;
+    min-height: auto;
+    border: 0;
+    text-align: left;
+    background: transparent;
+  }
+  #details .flow-details button[aria-pressed=true] { background: var(--selection); }
+  .call-graph {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
+    gap: 26px;
+    padding: 18px 14px;
+    overflow: auto;
+    max-height: max(350px, calc(100dvh - 190px));
+  }
+  .call-graph h2 { margin-bottom: 9px; }
+  .call-graph p { color: var(--muted); }
+  .call-node {
+    position: relative;
+    display: grid;
+    gap: 4px;
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 7px;
+    text-align: left;
+    overflow-wrap: anywhere;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--white);
+  }
+  .call-node.focus { background: var(--selection); border-color: var(--accent); }
+  .call-node span { color: var(--muted); }
+  button.call-node:hover { background: var(--paper); }
+  .call-graph section:not(:last-child) .call-node::after {
+    position: absolute;
+    left: calc(100% + 5px);
+    top: 6px;
+    content: "→";
+    color: var(--accent);
+  }
+}
+
 @layer responsive {
   @media (max-width: 1050px) {
     .panes { grid-template-columns: 150px minmax(0, 1fr) 228px; }
@@ -232,6 +338,8 @@
     .navigator { grid-row: span 2; }
   }
   @media (max-width: 540px) {
+    .call-graph { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+    .call-graph section:not(:last-child) .call-node::after { content: none; }
     .toolbar, .filebar { flex-wrap: wrap; padding-inline: 12px; }
     .brand { margin-right: 4px; }
     .toolbar .export, #entry { margin-left: 0; }
